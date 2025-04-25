@@ -1,0 +1,145 @@
+﻿@page "/CompanyManager"
+@inject ConfigurationService ConfigService
+@rendermode InteractiveServer
+
+<h3 class="text-center">Manage Company Details</h3>
+
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <form>
+                <!-- Company Name Dropdown -->
+                <div class="mb-3">
+                    <label for="companyName" class="form-label">Select Company</label>
+                    <select id="companyName" class="form-select" @bind="selectedCompany">
+                        <option value="" disabled>Select a company...</option>
+                        @foreach (var company in companyNames)
+                        {
+                            <option value="@company">@company</option>
+                        }
+                        <option value="__add_new__">Add New Company</option>
+                    </select>
+                </div>
+
+                <!-- Add New Company Input -->
+                @if (selectedCompany == "__add_new__")
+                {
+                    <div class="mb-3">
+                        <label for="newCompanyName" class="form-label">New Company Name</label>
+                        <input id="newCompanyName" type="text" class="form-control" @bind="newCompanyName" />
+                    </div>
+                }
+
+                <!-- Azure OpenAI Configuration -->
+                <h5>Azure OpenAI Configuration</h5>
+                <div class="mb-3">
+                    <label for="azureApiKey" class="form-label">API Key</label>
+                    <input id="azureApiKey" type="text" class="form-control" @bind="azureApiKey" />
+                </div>
+                <div class="mb-3">
+                    <label for="azureEndpoint" class="form-label">Endpoint</label>
+                    <input id="azureEndpoint" type="text" class="form-control" @bind="azureEndpoint" />
+                </div>
+                <div class="mb-3">
+                    <label for="azureModel" class="form-label">Model</label>
+                    <input id="azureModel" type="text" class="form-control" @bind="azureModel" />
+                </div>
+                <div class="mb-3">
+                    <label for="azureModel" class="form-label">DeploymentName</label>
+                    <input id="azureModel" type="text" class="form-control" @bind="azureDeployment" />
+                </div>
+
+                <!-- Ollama Configuration -->
+                <h5>Ollama Configuration</h5>
+                <div class="mb-3">
+                    <label for="ollamaApiKey" class="form-label">API Key</label>
+                    <input id="ollamaApiKey" type="text" class="form-control" @bind="ollamaApiKey" />
+                </div>
+                <div class="mb-3">
+                    <label for="ollamaEndpoint" class="form-label">Endpoint</label>
+                    <input id="ollamaEndpoint" type="text" class="form-control" @bind="ollamaEndpoint" />
+                </div>
+                <div class="mb-3">
+                    <label for="ollamaModel" class="form-label">Model</label>
+                    <input id="ollamaModel" type="text" class="form-control" @bind="ollamaModel" />
+                </div>
+
+                <button class="btn btn-primary me-2" @onclick="UpdateDetails">Update Details</button>
+                @if (!string.IsNullOrEmpty(selectedCompany) && selectedCompany != "__add_new__")
+                {
+                    <button class="btn btn-danger" @onclick="DeleteCompany">Delete Company</button>
+                }
+            </form>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string selectedCompany = string.Empty;
+    private string newCompanyName = string.Empty;
+    private List<string> companyNames = new();
+    private string azureApiKey = string.Empty;
+    private string azureEndpoint = string.Empty;
+    private string azureModel = string.Empty;
+    private string azureDeployment = string.Empty;
+    private string ollamaApiKey = string.Empty;
+    private string ollamaEndpoint = string.Empty;
+    private string ollamaModel = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Load company names from appsettings.json
+        companyNames = await ConfigService.GetCompanyNamesAsync();
+    }
+
+    private async Task UpdateDetails()
+    {
+        string companyToUpdate = selectedCompany == "__add_new__" ? newCompanyName : selectedCompany;
+
+        if (!string.IsNullOrEmpty(companyToUpdate))
+        {
+            // Update Azure OpenAI and Ollama configurations for the selected or new company
+            await ConfigService.UpdateCompanyDetailsAsync(companyToUpdate, new CompanyConfig
+            {
+                AzureOpenAI = new AzureOpenAIConfig
+                {
+                    ApiKey = EncryptionHelper.Encrypt(azureApiKey),
+                    Endpoint = EncryptionHelper.Encrypt(azureEndpoint),
+                    Model = EncryptionHelper.Encrypt(azureModel),
+                    DeploymentName = EncryptionHelper.Encrypt(azureDeployment)
+                },
+                Ollama = new OllamaConfig
+                {
+                    ApiKey = EncryptionHelper.Encrypt(ollamaApiKey),
+                    Endpoint = EncryptionHelper.Encrypt(ollamaEndpoint),
+                    Model = EncryptionHelper.Encrypt(ollamaModel)
+                }
+            });
+
+            // If a new company was added, refresh the company list
+            if (selectedCompany == "__add_new__")
+            {
+                companyNames.Add(newCompanyName);
+                selectedCompany = newCompanyName;
+                newCompanyName = string.Empty;
+            }
+
+            Console.WriteLine("Details updated successfully!");
+        }
+    }
+
+    private async Task DeleteCompany()
+    {
+        if (!string.IsNullOrEmpty(selectedCompany) && selectedCompany != "__add_new__")
+        {
+            // Delete the selected company from the configuration
+            await ConfigService.DeleteCompanyAsync(selectedCompany);
+
+            // Remove the company from the dropdown list
+            companyNames.Remove(selectedCompany);
+            selectedCompany = string.Empty;
+
+            Console.WriteLine("Company deleted successfully!");
+        }
+    }
+}

@@ -1,0 +1,61 @@
+﻿@inject ConfigurationService ConfigService
+
+<div class="container mt-4">
+    @if (IsCompanySelected)
+    {
+        <!-- Back to Company Selection Button -->
+        <div class="row mb-3">
+            <div class="col text-start">
+                <button class="btn btn-secondary" @onclick="ResetCompanySelection">Change Company</button>
+            </div>
+        </div>
+    }
+    else
+    {
+        <!-- Company Selection -->
+        <div class="row justify-content-center">
+            <div class="col-md-6 text-center">
+                <label for="companySelect" class="form-label">Select a Company</label>
+                <select id="companySelect" class="form-select" @bind="SelectedCompany">
+                    <option value="" disabled>Select a company...</option>
+                    @foreach (var company in Companies)
+                    {
+                        <option value="@company">@company</option>
+                    }
+                </select>
+                <button class="btn btn-primary mt-3" @onclick="ConfirmCompanySelection" disabled="@(string.IsNullOrEmpty(SelectedCompany))">Start</button>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public EventCallback<string> OnCompanySelected { get; set; }
+    [Parameter] public EventCallback OnCompanyReset { get; set; }
+    public List<string> Companies { get; set; } = new();
+    public string SelectedCompany { get; set; } = string.Empty;
+    public bool IsCompanySelected { get; set; } = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Load company names from appsettings.json
+        Companies = await ConfigService.GetCompanyNamesAsync();
+    }
+
+    private async Task ConfirmCompanySelection()
+    {
+        if (!string.IsNullOrEmpty(SelectedCompany))
+        {
+            IsCompanySelected = true;
+            await OnCompanySelected.InvokeAsync(SelectedCompany);
+        }
+    }
+
+    private async Task ResetCompanySelection()
+    {
+        IsCompanySelected = false;
+        SelectedCompany = string.Empty;
+        await OnCompanyReset.InvokeAsync();
+    }
+}
+
