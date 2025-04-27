@@ -33,16 +33,7 @@
                 <div class="card">
                     <div class="card-body">
                         <h5 class="card-title">Upload Incident Records</h5>
-                        <div class="mb-3">
-                            <div class="border border-primary rounded p-3 text-center bg-light"
-                            @ref="fileDropContainer"
-                            @ondragenter="OnDragEnter"
-                            @ondragleave="OnDragLeave"
-                            @ondragover="OnDragEnter">
-                                <label for="fileInput" class="form-label">Drag and drop files here or click to upload</label>
-                                <InputFile id="fileInput" class="form-control" OnChange="@OnChange" @ref="inputFile" multiple />
-                            </div>
-                        </div>
+                        <FileUploader OnFileUploaded="HandleFileUpload" AllowMultiple="true" />
                         <button class="btn btn-primary w-100" @onclick="AnalyzeTrends" disabled="@(!isFileUploaded || isLoading)">
                             Analyze Trends
                         </button>
@@ -161,6 +152,11 @@
             - contact the admins of the servers FS12, FS89 and FS21 to see if they are having issues with them.
 "; // Default report format
 
+    private void HandleFileUpload(byte[] fileContent)
+    {
+        uploadedFileContent = fileContent;
+        isFileUploaded = true;
+    }
     private void ToggleReportFormatEditor()
     {
         isReportFormatEditorVisible = !isReportFormatEditorVisible;
@@ -274,6 +270,8 @@
             //var arguments = new KernelArguments();
             //arguments.Add("incidentData", incidentData);
             int updates = 0;
+
+            //kernel.InvokeAsync(analyzeTrendsFunction,);
 
             await foreach (var item in analyzeTrendsFunction.InvokeStreamingAsync(kernel, null, cancellationTokenSource.Token))
             {

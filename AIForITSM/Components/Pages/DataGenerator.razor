@@ -1,0 +1,226 @@
+﻿@page "/DataGenerator"
+@using System.Text.Json
+@using Microsoft.JSInterop
+@using Microsoft.SemanticKernel
+@using OllamaSharp
+@using AIForITSM;
+@inject IJSRuntime JSRuntime
+@inject NavigationManager Navigation
+@inject ConfigurationService ConfigService
+@rendermode InteractiveServer
+
+<h3 class="text-center">Generate Sample ServiceNow Data</h3>
+
+<div class="container mt-4">
+    @if (!string.IsNullOrEmpty(ErrorMessage))
+    {
+        <div class="alert alert-danger text-center" role="alert">
+            @ErrorMessage
+        </div>
+    }
+
+    <!-- Company Selector -->
+    <CompanySelector OnCompanySelected="OnCompanySelected" OnCompanyReset="OnCompanyReset" />
+
+    @if (isCompanySelected)
+    {
+        <!-- Loading Indicator -->
+        <LoadingIndicator IsLoading="isLoading" CancelAnalysis="CancelDataGeneration" />
+
+        <div class="card mt-4">
+            <div class="card-body">
+                <h5 class="card-title">Sample Data Configuration</h5>
+                <form>
+                    <!-- Table Selection -->
+                    <div class="mb-3">
+                        <label class="form-label">Select Tables to Generate</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="userTable" @bind="generateUsers" />
+                            <label class="form-check-label" for="userTable">Users</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="incidentTable" @bind="generateIncidents" />
+                            <label class="form-check-label" for="incidentTable">Incidents</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="problemTable" @bind="generateProblems" />
+                            <label class="form-check-label" for="problemTable">Problems</label>
+                        </div>
+                    </div>
+
+                    <!-- Time Range -->
+                    <div class="mb-3">
+                        <label class="form-label">Time Range</label>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="timeRangeSwitch" @bind="isRelativeTimeRange" />
+                            <label class="form-check-label" for="timeRangeSwitch">
+                                @(isRelativeTimeRange ? "Relative Time Range" : "Specific Dates")
+                            </label>
+                        </div>
+
+                        @if (isRelativeTimeRange)
+                        {
+                            <div class="mb-3">
+                                <label for="relativeTimeRangeInput" class="form-label">Select Relative Time Range</label>
+                                <select id="relativeTimeRangeInput" class="form-select" @bind="relativeTimeRange">
+                                    <option value="1_week">Last 1 Week</option>
+                                    <option value="2_weeks">Last 2 Weeks</option>
+                                    <option value="3_weeks">Last 3 Weeks</option>
+                                    <option value="1_month">Last 1 Month</option>
+                                    <option value="2_months">Last 2 Months</option>
+                                    <option value="3_months">Last 3 Months</option>
+                                    <option value="1_year">Last 1 Year</option>
+                                    <option value="2_years">Last 2 Years</option>
+                                </select>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="row">
+                                <div class="col">
+                                    <label for="startDateInput" class="form-label">Start Date</label>
+                                    <input id="startDateInput" type="date" class="form-control" @bind="startDate" />
+                                </div>
+                                <div class="col">
+                                    <label for="endDateInput" class="form-label">End Date</label>
+                                    <input id="endDateInput" type="date" class="form-control" @bind="endDate" />
+                                </div>
+                            </div>
+                        }
+                    </div>
+
+                    <!-- Volume -->
+                    <div class="mb-3">
+                        <label for="volumeInput" class="form-label">Volume</label>
+                        <input id="volumeInput" type="number" class="form-control" @bind="volume" placeholder="e.g., 1000" />
+                        <small class="form-text text-muted">Number of records to generate.</small>
+                    </div>
+
+                    <!-- Data Trends -->
+                    <div class="mb-3">
+                        <label for="dataTrendsInput" class="form-label">Data Trends</label>
+                        <select id="dataTrendsInput" class="form-select" @bind="dataTrends">
+                            <option value="random">Fully Random</option>
+                            <option value="trends">Include Hidden Trends</option>
+                        </select>
+                        <small class="form-text text-muted">Choose whether the data should be fully random or include hidden trends.</small>
+                    </div>
+
+                    <!-- Generate Button -->
+                    <button type="button" class="btn btn-primary w-100" @onclick="GenerateSampleData" disabled="!CanGenerateData()">Generate Data</button>
+                </form>
+            </div>
+        </div>
+    }
+</div>
+
+<!-- Generated Data Output -->
+@if (!string.IsNullOrEmpty(generatedData))
+{
+    <div class="mt-4">
+        <h5>Generated Data</h5>
+        <button class="btn btn-success mt-3" @onclick="DownloadJsonFile">Download JSON</button>
+    </div>
+}
+
+@code {
+    private bool generateUsers = false;
+    private bool generateIncidents = false;
+    private bool generateProblems = false;
+
+    private bool isRelativeTimeRange = false;
+    private string relativeTimeRange = "1_week";
+    private DateTime? startDate;
+    private DateTime? endDate;
+    private int volume = 0;
+    private string dataTrends = "random";
+    private string generatedData = string.Empty;
+    private string ErrorMessage = string.Empty;
+
+    private bool isCompanySelected = false;
+    private bool isLoading = false;
+    private CompanyConfig selectedCompany;
+
+    private async Task OnCompanySelected(string company)
+    {
+        CompanyConfig companySettings = await ConfigService.GetCompanyDetailsAsync(company);
+        companySettings.Ollama.Model = EncryptionHelper.Decrypt(companySettings.Ollama.Model);
+        companySettings.Ollama.Endpoint = EncryptionHelper.Decrypt(companySettings.Ollama.Endpoint);
+        companySettings.AzureOpenAI.Model = EncryptionHelper.Decrypt(companySettings.AzureOpenAI.Model);
+        companySettings.AzureOpenAI.Endpoint = EncryptionHelper.Decrypt(companySettings.AzureOpenAI.Endpoint);
+        companySettings.AzureOpenAI.DeploymentName = EncryptionHelper.Decrypt(companySettings.AzureOpenAI.DeploymentName);
+        companySettings.AzureOpenAI.ApiKey = EncryptionHelper.Decrypt(companySettings.AzureOpenAI.ApiKey);
+        selectedCompany = companySettings;
+        isCompanySelected = true;
+    }
+
+    private async Task OnCompanyReset()
+    {
+        isCompanySelected = false;
+        selectedCompany = null;
+    }
+
+    private void CancelDataGeneration()
+    {
+        isLoading = false;
+        ErrorMessage = "Data generation was canceled.";
+    }
+
+    private bool CanGenerateData()
+    {
+        return generateUsers || generateIncidents || generateProblems;
+    }
+
+    private async Task GenerateSampleData()
+    {
+        try
+        {
+            ErrorMessage = string.Empty;
+
+            if (!CanGenerateData() || volume <= 0)
+            {
+                ErrorMessage = "Please select at least one table and specify a valid volume.";
+                return;
+            }
+
+            isLoading = true;
+
+            var builder = Kernel.CreateBuilder();
+#pragma warning disable SKEXP0070
+            builder.AddOllamaTextGeneration(new OllamaApiClient(selectedCompany.Ollama.Endpoint, selectedCompany.Ollama.Model));
+#pragma warning restore SKEXP0070
+            var kernel = builder.Build();
+            kernel.ImportPluginFromType<RecordGeneratorPlugin>();
+            PromptExecutionSettings settings = new PromptExecutionSettings
+                {
+                    FunctionChoiceBehavior = FunctionChoiceBehavior.Auto(),
+                };
+            var response = await kernel.InvokePromptAsync("Generate the required service now record data: \n" +
+                $"Generate {volume} records for the following tables: " +
+                $"{(generateUsers ? "Users" : "")} {(generateIncidents ? "Incidents" : "")} {(generateProblems ? "Problems" : "")} " +
+                $"with a time range of {relativeTimeRange} and data trends set to {dataTrends}.", new KernelArguments(settings));
+            generatedData = response.ToString();
+            
+            isLoading = false;
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"An error occurred: {ex.Message}";
+            isLoading = false;
+        }
+    }
+
+    private async Task DownloadJsonFile()
+    {
+        if (string.IsNullOrEmpty(generatedData))
+        {
+            ErrorMessage = "No data available to download.";
+            return;
+        }
+
+        var fileName = "GeneratedData.json";
+        var jsonData = JsonSerializer.Serialize(generatedData, new JsonSerializerOptions { WriteIndented = true });
+
+        await JSRuntime.InvokeVoidAsync("downloadFile", fileName, jsonData);
+    }
+}

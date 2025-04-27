@@ -1,0 +1,53 @@
+﻿@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.AspNetCore.Components
+@using System.Text
+
+<div class="mb-3">
+    <div class="border border-primary rounded p-3 text-center bg-light"
+         @ref="fileDropContainer"
+         @ondragenter="OnDragEnter"
+         @ondragleave="OnDragLeave"
+         @ondragover="OnDragEnter">
+        <label for="fileInput" class="form-label">Drag and drop files here or click to upload</label>
+        <InputFile id="fileInput" class="form-control" OnChange="HandleFileChange" multiple="@AllowMultiple" />
+    </div>
+    @if (!string.IsNullOrEmpty(ErrorMessage))
+    {
+        <div class="alert alert-danger mt-2" role="alert">
+            @ErrorMessage
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public EventCallback<byte[]> OnFileUploaded { get; set; }
+    [Parameter] public bool AllowMultiple { get; set; } = false;
+    [Parameter] public string ErrorMessage { get; set; } = string.Empty;
+
+    private ElementReference fileDropContainer;
+    private string HoverClass;
+
+    private void OnDragEnter(DragEventArgs e) => HoverClass = "hover";
+
+    private void OnDragLeave(DragEventArgs e) => HoverClass = string.Empty;
+
+    private async Task HandleFileChange(InputFileChangeEventArgs e)
+    {
+        try
+        {
+            ErrorMessage = string.Empty;
+
+            IBrowserFile file = e.File;
+            using var stream = file.OpenReadStream();
+            Memory<byte> data = new byte[file.Size];
+
+            while (await stream.ReadAsync(data) > 0) ;
+
+            await OnFileUploaded.InvokeAsync(data.ToArray());
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"An error occurred while uploading the file: {ex.Message}";
+        }
+    }
+}
