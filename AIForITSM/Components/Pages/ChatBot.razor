@@ -54,19 +54,9 @@
                         <input @bind="userInput" @bind:event="oninput" @onkeydown="HandleKeyDown" type="text" class="form-control" placeholder="Type your message here..." />
                         <button class="btn btn-primary" @onclick="SendMessage">Send</button>
                     </div>
-                    <div class="form-check form-switch mt-2">
-                        <input class="form-check-input" type="checkbox" id="serviceToggle" @bind="useAzureService" />
-                        <label class="form-check-label" for="serviceToggle">
-                            @if (useAzureService)
-                            {
-                                <span>Azure OpenAI</span>
-                            }
-                            else
-                            {
-                                <span>Local (Ollama)</span>
-                            }
-                        </label>
-                    </div>
+
+                    <!-- AI Service Selector Component -->
+                    <AIServiceSelector UseAzureService="useAzureService" UseAzureServiceChanged="OnUseAzureServiceChanged" />
                 </div>
             </div>
         </div>
@@ -94,6 +84,10 @@
         }
     }
 
+    private void OnUseAzureServiceChanged(bool value)
+    {
+        useAzureService = value;
+    }
     private async Task OnCompanySelected(string company)
     {
         selectedCompany = company;

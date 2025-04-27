@@ -1,0 +1,26 @@
+﻿<div class="form-check form-switch">
+    <input class="form-check-input" type="checkbox" id="serviceToggle" @bind="UseAzureService" />
+    <label class="form-check-label" for="serviceToggle">
+        @if (UseAzureService)
+        {
+            <span>Azure OpenAI</span>
+        }
+        else
+        {
+            <span>Local (Ollama)</span>
+        }
+    </label>
+</div>
+
+@code {
+    [Parameter]
+    public bool UseAzureService { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> UseAzureServiceChanged { get; set; }
+
+    private async Task ToggleService()
+    {
+        await UseAzureServiceChanged.InvokeAsync(UseAzureService);
+    }
+}

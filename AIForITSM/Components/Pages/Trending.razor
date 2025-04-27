@@ -1,0 +1,318 @@
+﻿@page "/trending"
+@using System.Text.Json
+@using System.Text
+@using Azure.AI.OpenAI
+@using Microsoft.SemanticKernel
+@using Microsoft.SemanticKernel.Connectors.AzureOpenAI;
+@using Microsoft.SemanticKernel.Connectors.Ollama;
+@using OllamaSharp
+@inject ConfigurationService ConfigService
+@rendermode InteractiveServer
+
+<h3 class="text-center">Trending Analysis</h3>
+
+<div class="container mt-4">
+    @if (!string.IsNullOrEmpty(ErrorMessage))
+    {
+        <div class="alert alert-danger text-center" role="alert">
+            @ErrorMessage
+        </div>
+    }
+
+    <!-- Loading Indicator -->
+    <LoadingIndicator IsLoading="isLoading" Message="Analyzing trends, please wait..." CancelAnalysis="CancelAnalysis" />
+
+    <!-- Company Selector -->
+    <CompanySelector OnCompanySelected="OnCompanySelected" OnCompanyReset="OnCompanyReset" />
+
+    @if (isAnalysisStarted)
+    {
+        <!-- File Upload Section -->
+        <div class="row justify-content-center mt-4">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Upload Incident Records</h5>
+                        <div class="mb-3">
+                            <div class="border border-primary rounded p-3 text-center bg-light"
+                            @ref="fileDropContainer"
+                            @ondragenter="OnDragEnter"
+                            @ondragleave="OnDragLeave"
+                            @ondragover="OnDragEnter">
+                                <label for="fileInput" class="form-label">Drag and drop files here or click to upload</label>
+                                <InputFile id="fileInput" class="form-control" OnChange="@OnChange" @ref="inputFile" multiple />
+                            </div>
+                        </div>
+                        <button class="btn btn-primary w-100" @onclick="AnalyzeTrends" disabled="@(!isFileUploaded || isLoading)">
+                            Analyze Trends
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="container mt-4">
+            <button class="btn btn-secondary mb-3" @onclick="ToggleReportFormatEditor">
+                @(isReportFormatEditorVisible ? "Hide Report Format Editor" : "Edit Report Format")
+            </button>
+
+            @if (isReportFormatEditorVisible)
+            {
+                <div class="mb-3">
+                    <label for="reportFormatInput" class="form-label">Report Format</label>
+                    <textarea id="reportFormatInput" class="form-control" rows="6" @bind="reportFormat"></textarea>
+                    <small class="form-text text-muted">
+                        Define the structure of the report. This will be included in the AI prompt.
+                    </small>
+                </div>
+            }
+        </div>
+
+        <!-- AI Service Selector -->
+        <div class="row justify-content-center mt-4">
+            <div class="col-md-8">
+                <AIServiceSelector UseAzureService="useAzureService" UseAzureServiceChanged="OnUseAzureServiceChanged" />
+            </div>
+        </div>
+
+        <!-- Markdown Report -->
+        @if (!string.IsNullOrEmpty(markdownReport))
+        {
+            <div class="row justify-content-center mt-4">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">Generated Report</h5>
+                            <pre>@markdownReport</pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+</div>
+
+
+@code {
+    private InputFile inputFile;
+    private ElementReference fileDropContainer;
+    private string HoverClass;
+    private string ErrorMessage;
+    private bool isAnalysisStarted = false;
+    private bool isFileUploaded = false;
+    private bool isLoading = false; // New loading state
+    private CompanyConfig selectedCompany = new CompanyConfig();
+    private bool useAzureService = false;
+    private string markdownReport = string.Empty;
+    private byte[] uploadedFileContent;
+    private CancellationTokenSource? cancellationTokenSource;
+
+    private bool isReportFormatEditorVisible = false; // Tracks visibility of the editor
+    private string reportFormat = @"
+    # Incident Trends Report
+    ## Summary
+    A brief summary of the trends identified. One paragraph.
+
+    ## Breakdown
+    Only break down trends identified that may need further investigation/do not have a clear cause.
+    ### By Category
+    A breakdown of the trends by type of issue.
+
+    ### By Location
+    A breakdown of the trends by location.
+
+    ### By Caller
+    A breakdown of the trends by caller.
+
+    ### By Device/Service
+    A Breakdown of any technical issue trends either for individual devices that may be problematic or groups of similar devices/services.
+
+    ## Identified Actions/Recommendations
+    A list of actions or recommendations based on the trends identified.
+
+
+    Example of the expected format:
+            # Incident Trends Report
+            ## Summary
+            No major trends were identified that will require investigations. however there are some querys that may need to be asked due to some alerts.
+
+            ## Breakdown
+            ### By Category/Service
+            - 10% of incidents were related to network issues. Noticed there has been more slowness incidents raised at the end of the week.
+            - Microsoft outlook has been having some issues with the teams meeting addin.
+
+            ### By Location
+            - London has the most incidents every day at 6am.
+            - There has been more password resets in cardif than anywhere else in the last month.
+
+            ### By Caller
+            - John always calls for a password reset every monday.
+            - Alex's team has been unable to access a lot of shared folders.
+
+            ### By Device/Service
+            - There has been a lot of issues with the new laptops that have been rolled out.
+            - The new printer in the London office has been having issues with printing.
+            - servers FS12, FS89 and FS21 are all generating alerts of 100% utilisation at lunchtime on tuesdays.
+
+            ## Identified Actions/Recommendations
+            - ask the service desk to contact john to see if he is having issues with his password.
+            - ask the user access team to check alex's team's permissions for the shared folders.
+            - ask the service desk to contact the users of the new laptops to see if they are having issues with them.
+            - ask the service desk to contact the users of the new printer to see if they are having issues with it.
+            - contact the admins of the servers FS12, FS89 and FS21 to see if they are having issues with them.
+"; // Default report format
+
+    private void ToggleReportFormatEditor()
+    {
+        isReportFormatEditorVisible = !isReportFormatEditorVisible;
+    }
+
+
+    private void OnDragEnter(DragEventArgs e) => HoverClass = "hover";
+
+    private void OnDragLeave(DragEventArgs e) => HoverClass = string.Empty;
+
+    private async Task OnChange(InputFileChangeEventArgs e)
+    {
+        ErrorMessage = string.Empty;
+
+        IBrowserFile file = e.File;
+        using var stream = file.OpenReadStream();
+        Memory<byte> data = new byte[file.Size];
+
+        while (await stream.ReadAsync(data) > 0) ;
+
+        uploadedFileContent = data.ToArray();
+        isFileUploaded = true;
+    }
+
+    private async Task OnCompanySelected(string company)
+    {
+        CompanyConfig companySettings = await ConfigService.GetCompanyDetailsAsync(company);
+        companySettings.Ollama.Model = EncryptionHelper.Decrypt(companySettings.Ollama.Model);
+        companySettings.Ollama.Endpoint = EncryptionHelper.Decrypt(companySettings.Ollama.Endpoint);
+        companySettings.AzureOpenAI.Model = EncryptionHelper.Decrypt(companySettings.AzureOpenAI.Model);
+        companySettings.AzureOpenAI.Endpoint = EncryptionHelper.Decrypt(companySettings.AzureOpenAI.Endpoint);
+        companySettings.AzureOpenAI.DeploymentName = EncryptionHelper.Decrypt(companySettings.AzureOpenAI.DeploymentName);
+        companySettings.AzureOpenAI.ApiKey = EncryptionHelper.Decrypt(companySettings.AzureOpenAI.ApiKey);
+        selectedCompany = companySettings;
+        isAnalysisStarted = true;
+    }
+
+    private void OnCompanyReset()
+    {
+        selectedCompany = new CompanyConfig();
+        isAnalysisStarted = false;
+        isFileUploaded = false;
+        markdownReport = string.Empty;
+    }
+
+    private void OnUseAzureServiceChanged(bool value)
+    {
+        useAzureService = value;
+    }
+
+    private async Task<Kernel> GetKernel()
+    {
+        // Initialize Semantic Kernel
+        var kernelBuilder = Kernel.CreateBuilder();
+        if (useAzureService)
+        {
+            // Configure Azure OpenAI
+            kernelBuilder.AddAzureOpenAIChatCompletion(selectedCompany.AzureOpenAI.DeploymentName,
+                new AzureOpenAIClient(new Uri(selectedCompany.AzureOpenAI.Endpoint),
+                    new System.ClientModel.ApiKeyCredential(selectedCompany.AzureOpenAI.ApiKey)));
+        }
+        else
+        {
+            // Configure Ollama
+#pragma warning disable SKEXP0070
+            kernelBuilder.AddOllamaChatCompletion(new OllamaApiClient(selectedCompany.Ollama.Endpoint, selectedCompany.Ollama.Model));
+#pragma warning restore SKEXP0070
+        }
+        return kernelBuilder.Build();
+    }
+
+    private async Task AnalyzeTrends()
+    {
+        isLoading = true; // Start loading
+        StateHasChanged();
+        cancellationTokenSource = new CancellationTokenSource();
+
+        // Convert the file content to a string (assuming it's JSON data)
+        string incidentData = Encoding.UTF8.GetString(uploadedFileContent);
+
+        // Ensure incidentData is not empty or null
+        if (string.IsNullOrWhiteSpace(incidentData))
+        {
+            ErrorMessage = "The uploaded file is empty or invalid.";
+            isLoading = false; // Stop loading
+            StateHasChanged();
+            return;
+        }
+
+        Kernel kernel = await GetKernel();
+
+        // Dynamically include the user-defined report format in the prompt
+        var prompt = $@"
+        You are an AI assistant analyzing incident data from a ServiceNow instance.
+        Identify technical issue trends and summarize them in markdown format.
+        The input data is in JSON format. Provide a concise and clear report.
+
+        The format of the report should strictly follow this template:
+        {reportFormat}
+
+        Do not deviate from this format. Ensure that the output matches the structure exactly as specified.
+
+        Incident Data:
+        ---------------------------------------------------
+        {incidentData}";
+
+        var analyzeTrendsFunction = kernel.CreateFunctionFromPrompt(prompt);
+
+        try
+        {
+            //var arguments = new KernelArguments();
+            //arguments.Add("incidentData", incidentData);
+            int updates = 0;
+
+            await foreach (var item in analyzeTrendsFunction.InvokeStreamingAsync(kernel, null, cancellationTokenSource.Token))
+            {
+                if (updates == 10)
+                {
+                    StateHasChanged();
+                    updates = 0;
+                }
+                if (!string.IsNullOrEmpty(item.ToString()))
+                {
+                    markdownReport += item.ToString();
+                }
+                updates++;
+            }
+
+            if (string.IsNullOrEmpty(markdownReport))
+            {
+                ErrorMessage = "The AI did not generate any response.";
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"An error occurred during analysis: {ex.Message}";
+        }
+        finally
+        {
+            cancellationTokenSource.Dispose();
+            cancellationTokenSource = null;
+            isLoading = false; // Stop loading
+            StateHasChanged();
+        }
+    }
+
+
+    private void CancelAnalysis()
+    {
+        if (cancellationTokenSource != null)
+        {
+            cancellationTokenSource.Cancel(); // Cancel the operation
+        }
+    }
+}

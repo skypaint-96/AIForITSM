@@ -1,92 +1,102 @@
-using System.Text.Json;
-
-public class ConfigurationService
+namespace AIForITSM
 {
-    private readonly string _filePath = "appsettings.json";
+    using System.Text.Json;
 
-    public async Task DeleteCompanyAsync(string companyName)
+    /// <summary>
+    /// Service for managing company configurations stored in appsettings.json.
+    /// </summary>
+    public class ConfigurationService
     {
-        var json = await File.ReadAllTextAsync(_filePath);
-        var config = JsonSerializer.Deserialize<Dictionary<string, object>>(json);
+        private const string FILE_PATH = "appsettings.json";
 
-        if (config != null && config.ContainsKey("CompanySettings"))
+        /// <summary>
+        /// Deletes a company's configuration from the appsettings.json file.
+        /// </summary>
+        /// <param name="companyName">The name of the company to delete.</param>
+        public async Task DeleteCompanyAsync(string companyName)
         {
-            var companySettings = JsonSerializer.Deserialize<Dictionary<string, object>>(config["CompanySettings"].ToString() ?? "{}");
-
-            if (companySettings != null && companySettings.ContainsKey(companyName))
+            string json = await File.ReadAllTextAsync(FILE_PATH);
+            Dictionary<string, object>? config = JsonSerializer.Deserialize<Dictionary<string, object>>(json);
+            if (config != null && config.ContainsKey("CompanySettings"))
             {
-                companySettings.Remove(companyName);
-                config["CompanySettings"] = companySettings;
+                Dictionary<string, object>? companySettings = JsonSerializer.Deserialize<Dictionary<string, object>>(config["CompanySettings"]?.ToString() ?? "{}");
+                if (companySettings != null && companySettings.ContainsKey(companyName))
+                {
+                    companySettings.Remove(companyName);
+                    config["CompanySettings"] = companySettings;
 
-                var updatedJson = JsonSerializer.Serialize(config, new JsonSerializerOptions { WriteIndented = true });
-                await File.WriteAllTextAsync(_filePath, updatedJson);
+                    string updatedJson = JsonSerializer.Serialize(config, new JsonSerializerOptions { WriteIndented = true });
+                    await File.WriteAllTextAsync(FILE_PATH, updatedJson);
+                }
             }
         }
-    }
-    public async Task<List<string>> GetCompanyNamesAsync()
-    {
-        var json = await File.ReadAllTextAsync("appsettings.json");
-        var config = JsonSerializer.Deserialize<Dictionary<string, object>>(json);
-        if (config != null && config.ContainsKey("CompanySettings"))
-        {
-            var companySettings = JsonSerializer.Deserialize<Dictionary<string, object>>(config["CompanySettings"].ToString() ?? "{}");
-            return companySettings?.Keys.ToList() ?? new List<string>();
-        }
-        return new List<string>();
-    }
-    public async Task UpdateCompanyDetailsAsync(string companyName, CompanyConfig config)
-    {
-        var json = await File.ReadAllTextAsync(_filePath);
-        var appConfig = JsonSerializer.Deserialize<Dictionary<string, object>>(json);
 
-        if (appConfig == null) return;
-
-        if (!appConfig.ContainsKey("CompanySettings"))
+        /// <summary>
+        /// Retrieves the list of company names from the appsettings.json file.
+        /// </summary>
+        /// <returns>A list of company names.</returns>
+        public async Task<List<string>> GetCompanyNamesAsync()
         {
-            appConfig["CompanySettings"] = new Dictionary<string, object>();
+            List<string> companyNames = new List<string>();
+            string json = await File.ReadAllTextAsync("appsettings.json");
+            Dictionary<string, object>? config = JsonSerializer.Deserialize<Dictionary<string, object>>(json);
+            if (config != null && config.ContainsKey("CompanySettings"))
+            {
+                Dictionary<string, object>? companySettings = JsonSerializer.Deserialize<Dictionary<string, object>>(config["CompanySettings"]?.ToString() ?? "{}");
+                companyNames = companySettings?.Keys.ToList() ?? new List<string>();
+            }
+
+            return companyNames;
         }
 
-        var companySettings = JsonSerializer.Deserialize<Dictionary<string, object>>(appConfig["CompanySettings"].ToString() ?? "{}");
+        /// <summary>
+        /// Updates the configuration details for a specific company in the appsettings.json file.
+        /// </summary>
+        /// <param name="companyName">The name of the company to update.</param>
+        /// <param name="config">The new configuration details for the company.</param>
+        public async Task UpdateCompanyDetailsAsync(string companyName, CompanyConfig config)
+        {
+            string json = await File.ReadAllTextAsync(FILE_PATH);
+            Dictionary<string, object>? appConfig = JsonSerializer.Deserialize<Dictionary<string, object>>(json);
+            if (appConfig != null)
+            {
+                if (!appConfig.ContainsKey("CompanySettings"))
+                {
+                    appConfig["CompanySettings"] = new Dictionary<string, object>();
+                }
 
-        companySettings[companyName] = config;
+                Dictionary<string, object>? companySettings = JsonSerializer.Deserialize<Dictionary<string, object>>(appConfig["CompanySettings"]?.ToString() ?? "{}");
+                if (companySettings != null)
+                {
+                    companySettings[companyName] = config;
+                    appConfig["CompanySettings"] = companySettings;
+                    string updatedJson = JsonSerializer.Serialize(appConfig, new JsonSerializerOptions { WriteIndented = true });
+                    await File.WriteAllTextAsync(FILE_PATH, updatedJson);
+                }
+            }
+        }
 
-        appConfig["CompanySettings"] = companySettings;
+        /// <summary>
+        /// Retrieves the configuration details for a specific company.
+        /// </summary>
+        /// <param name="companyName">The name of the company to retrieve details for.</param>
+        /// <returns>The configuration details of the company.</returns>
+        public async Task<CompanyConfig?> GetCompanyDetailsAsync(string companyName)
+        {
+            CompanyConfig? companyConfig = null;
+            string json = await File.ReadAllTextAsync(FILE_PATH);
+            Dictionary<string, object>? config = JsonSerializer.Deserialize<Dictionary<string, object>>(json);
+            if (config != null && config.ContainsKey("CompanySettings"))
+            {
+                Dictionary<string, CompanyConfig>? companySettings = JsonSerializer.Deserialize<Dictionary<string, CompanyConfig>>(config["CompanySettings"]?.ToString() ?? "{}");
 
-        var updatedJson = JsonSerializer.Serialize(appConfig, new JsonSerializerOptions { WriteIndented = true });
-        await File.WriteAllTextAsync(_filePath, updatedJson);
+                if (companySettings != null && companySettings.ContainsKey(companyName))
+                {
+                    companyConfig = companySettings[companyName];
+                }
+            }
+
+            return companyConfig;
+        }
     }
-
-    //public async Task<Dictionary<string, string>> GetCompanyDetailsAsync(string companyName)
-    //{
-    //    var json = await File.ReadAllTextAsync(_filePath);
-    //    var config = JsonSerializer.Deserialize<Dictionary<string, object>>(json);
-
-    //    if (config == null || !config.ContainsKey("CompanySettings")) return null;
-
-    //    var companySettings = JsonSerializer.Deserialize<Dictionary<string, object>>(config["CompanySettings"].ToString() ?? "{}");
-
-    //    if (companySettings == null || !companySettings.ContainsKey(companyName)) return null;
-
-    //    var company = JsonSerializer.Deserialize<Dictionary<string, string>>(companySettings[companyName].ToString() ?? "{}");
-
-    //    return new Dictionary<string, string>
-    //    {
-    //        { "ApiKey", EncryptionHelper.Decrypt(company["ApiKey"]) },
-    //        { "Endpoint", EncryptionHelper.Decrypt(company["Endpoint"]) }
-    //    };
-    //}
-    public async Task<CompanyConfig> GetCompanyDetailsAsync(string companyName)
-    {
-        var json = await File.ReadAllTextAsync(_filePath);
-        var config = JsonSerializer.Deserialize<Dictionary<string, object>>(json);
-
-        if (config == null || !config.ContainsKey("CompanySettings")) return null;
-
-        var companySettings = JsonSerializer.Deserialize<Dictionary<string, CompanyConfig>>(config["CompanySettings"].ToString() ?? "{}");
-
-        if (companySettings == null || !companySettings.ContainsKey(companyName)) return null;
-
-        return companySettings[companyName];
-    }
-
 }
