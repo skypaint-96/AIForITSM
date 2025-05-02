@@ -30,90 +30,108 @@
         <div class="card mt-4">
             <div class="card-body">
                 <h5 class="card-title">Sample Data Configuration</h5>
-                <form>
-                    <!-- Table Selection -->
-                    <div class="mb-3">
-                        <label class="form-label">Select Tables to Generate</label>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="userTable" @bind="generateUsers" />
-                            <label class="form-check-label" for="userTable">Users</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="incidentTable" @bind="generateIncidents" />
-                            <label class="form-check-label" for="incidentTable">Incidents</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="problemTable" @bind="generateProblems" />
-                            <label class="form-check-label" for="problemTable">Problems</label>
-                        </div>
+
+                <!-- Table Selection -->
+                <div class="mb-3">
+                    <label class="form-label">Select Tables to Generate</label>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="userTable" @bind="generateUsers" />
+                        <label class="form-check-label" for="userTable">Users</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="incidentTable" @bind="generateIncidents" />
+                        <label class="form-check-label" for="incidentTable">Incidents</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="problemTable" @bind="generateProblems" />
+                        <label class="form-check-label" for="problemTable">Problems</label>
+                    </div>
+                </div>
+
+                <!-- Time Range -->
+                <div class="mb-3">
+                    <label class="form-label">Time Range</label>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="timeRangeSwitch" @bind="isRelativeTimeRange" />
+                        <label class="form-check-label" for="timeRangeSwitch">
+                            @(isRelativeTimeRange ? "Relative Time Range" : "Specific Dates")
+                        </label>
                     </div>
 
-                    <!-- Time Range -->
-                    <div class="mb-3">
-                        <label class="form-label">Time Range</label>
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="timeRangeSwitch" @bind="isRelativeTimeRange" />
-                            <label class="form-check-label" for="timeRangeSwitch">
-                                @(isRelativeTimeRange ? "Relative Time Range" : "Specific Dates")
-                            </label>
+                    @if (isRelativeTimeRange)
+                    {
+                        <div class="mb-3">
+                            <label for="relativeTimeRangeInput" class="form-label">Select Relative Time Range</label>
+                            <select id="relativeTimeRangeInput" class="form-select" @bind="relativeTimeRange">
+                                <option value="1_week">Last 1 Week</option>
+                                <option value="2_weeks">Last 2 Weeks</option>
+                                <option value="3_weeks">Last 3 Weeks</option>
+                                <option value="1_month">Last 1 Month</option>
+                                <option value="2_months">Last 2 Months</option>
+                                <option value="3_months">Last 3 Months</option>
+                                <option value="1_year">Last 1 Year</option>
+                                <option value="2_years">Last 2 Years</option>
+                            </select>
                         </div>
-
-                        @if (isRelativeTimeRange)
-                        {
-                            <div class="mb-3">
-                                <label for="relativeTimeRangeInput" class="form-label">Select Relative Time Range</label>
-                                <select id="relativeTimeRangeInput" class="form-select" @bind="relativeTimeRange">
-                                    <option value="1_week">Last 1 Week</option>
-                                    <option value="2_weeks">Last 2 Weeks</option>
-                                    <option value="3_weeks">Last 3 Weeks</option>
-                                    <option value="1_month">Last 1 Month</option>
-                                    <option value="2_months">Last 2 Months</option>
-                                    <option value="3_months">Last 3 Months</option>
-                                    <option value="1_year">Last 1 Year</option>
-                                    <option value="2_years">Last 2 Years</option>
-                                </select>
+                    }
+                    else
+                    {
+                        <div class="row">
+                            <div class="col">
+                                <label for="startDateInput" class="form-label">Start Date</label>
+                                <input id="startDateInput" type="date" class="form-control" @bind="startDate" />
                             </div>
-                        }
-                        else
-                        {
-                            <div class="row">
-                                <div class="col">
-                                    <label for="startDateInput" class="form-label">Start Date</label>
-                                    <input id="startDateInput" type="date" class="form-control" @bind="startDate" />
-                                </div>
-                                <div class="col">
-                                    <label for="endDateInput" class="form-label">End Date</label>
-                                    <input id="endDateInput" type="date" class="form-control" @bind="endDate" />
-                                </div>
+                            <div class="col">
+                                <label for="endDateInput" class="form-label">End Date</label>
+                                <input id="endDateInput" type="date" class="form-control" @bind="endDate" />
                             </div>
-                        }
-                    </div>
+                        </div>
+                    }
+                </div>
 
-                    <!-- Volume -->
-                    <div class="mb-3">
-                        <label for="volumeInput" class="form-label">Volume</label>
-                        <input id="volumeInput" type="number" class="form-control" @bind="volume" placeholder="e.g., 1000" />
-                        <small class="form-text text-muted">Number of records to generate.</small>
-                    </div>
+                <!-- Volume -->
+                <div class="mb-3">
+                    <label for="volumeInput" class="form-label">Volume</label>
+                    <input id="volumeInput" type="number" class="form-control" @bind="volume" placeholder="e.g., 1000" />
+                    <small class="form-text text-muted">Number of records to generate.</small>
+                </div>
 
-                    <!-- Data Trends -->
-                    <div class="mb-3">
-                        <label for="dataTrendsInput" class="form-label">Data Trends</label>
-                        <select id="dataTrendsInput" class="form-select" @bind="dataTrends">
-                            <option value="random">Fully Random</option>
-                            <option value="trends">Include Hidden Trends</option>
-                        </select>
-                        <small class="form-text text-muted">Choose whether the data should be fully random or include hidden trends.</small>
-                    </div>
+                <!-- Data Trends -->
+                <div class="mb-3">
+                    <label for="dataTrendsInput" class="form-label">Data Trends</label>
+                    <select id="dataTrendsInput" class="form-select" @bind="dataTrends">
+                        <option value="random">Fully Random</option>
+                        <option value="trends">Include Hidden Trends</option>
+                    </select>
+                    <small class="form-text text-muted">Choose whether the data should be fully random or include hidden trends.</small>
+                </div>
 
-                    <!-- Generate Button -->
-                    <button type="button" class="btn btn-primary w-100" @onclick="GenerateSampleData" disabled="!CanGenerateData()">Generate Data</button>
-                </form>
+                <!-- Generate Button -->
+                @if (CanGenerateData())
+                {
+                    <button type="button" class="btn btn-primary w-100" @onclick="GenerateSampleData">Generate Data</button>
+                }
+                else
+                {
+                    <button type="button" class="btn btn-primary w-100" @onclick="GenerateSampleData"  disabled="true">Generate Data</button>
+                }
+
             </div>
         </div>
     }
 </div>
+<script>
+    function downloadFile(fileName, content) {
+    const blob = new Blob([content], { type: "application/json" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    }
 
+</script>
 <!-- Generated Data Output -->
 @if (!string.IsNullOrEmpty(generatedData))
 {
@@ -168,39 +186,47 @@
 
     private bool CanGenerateData()
     {
-        return generateUsers || generateIncidents || generateProblems;
+        // Ensure at least one table is selected
+        bool isTableSelected = generateUsers || generateIncidents || generateProblems;
+        // Ensure volume is greater than 0
+        bool isVolumeValid = volume > 0;
+        // Ensure time range is valid
+        bool isTimeRangeValid = isRelativeTimeRange || (startDate.HasValue && endDate.HasValue && startDate <= endDate);
+        return isTableSelected && isVolumeValid && isTimeRangeValid;
     }
+
 
     private async Task GenerateSampleData()
     {
         try
         {
             ErrorMessage = string.Empty;
-
-            if (!CanGenerateData() || volume <= 0)
-            {
-                ErrorMessage = "Please select at least one table and specify a valid volume.";
-                return;
-            }
-
             isLoading = true;
-
             var builder = Kernel.CreateBuilder();
 #pragma warning disable SKEXP0070
             builder.AddOllamaTextGeneration(new OllamaApiClient(selectedCompany.Ollama.Endpoint, selectedCompany.Ollama.Model));
 #pragma warning restore SKEXP0070
+            builder.Plugins.AddFromType<RecordGeneratorPlugin>();
             var kernel = builder.Build();
-            kernel.ImportPluginFromType<RecordGeneratorPlugin>();
-            PromptExecutionSettings settings = new PromptExecutionSettings
-                {
-                    FunctionChoiceBehavior = FunctionChoiceBehavior.Auto(),
-                };
-            var response = await kernel.InvokePromptAsync("Generate the required service now record data: \n" +
-                $"Generate {volume} records for the following tables: " +
-                $"{(generateUsers ? "Users" : "")} {(generateIncidents ? "Incidents" : "")} {(generateProblems ? "Problems" : "")} " +
-                $"with a time range of {relativeTimeRange} and data trends set to {dataTrends}.", new KernelArguments(settings));
-            generatedData = response.ToString();
-            
+            // KernelArguments args = new KernelArguments();
+            // args.Add("incidentId", "INC001");
+            // args.Add("shortDescription", "Example Incident");
+            // args.Add("description", "This is a test incident.");
+            // args.Add("priority", 1);
+            // args.Add("state", "New");
+            // args.Add("assignedTo", "John Doe");
+            // args.Add("callerId", "Jane Smith");
+            // args.Add("category", "Network");
+            // args.Add("subcategory", "Connectivity");
+            // args.Add("openedAt", DateTime.UtcNow.ToString("o")); // ISO 8601 format
+            // args.Add("resolvedAt", null);
+            // args.Add("closedAt", null);
+            // args.Add("impact", 1);
+            // args.Add("urgency", 1);
+            // args.Add("comments", "No comments");
+            var availableFunctions = kernel.Plugins;
+            generatedData = (await kernel.InvokeAsync("RecordGeneratorPlugin", "GetDate")).ToString();
+            StateHasChanged(); 
             isLoading = false;
         }
         catch (Exception ex)
