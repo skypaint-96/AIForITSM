@@ -1,0 +1,32 @@
+[
+  {
+    "ReferenceNumber": "PRB001",
+    "OpenedDate": "2025-05-01T00:00:00Z",
+    "Title": "Network Latency Issue",
+    "Summary": "Users are experiencing high latency in the network."
+  },
+  {
+    "ReferenceNumber": "PRB002",
+    "OpenedDate": "2025-04-25T00:00:00Z",
+    "Title": "Email Delivery Failure",
+    "Summary": "Emails are not being delivered to external domains."
+  },
+  {
+    "ReferenceNumber": "PRB003",
+    "OpenedDate": "2025-04-20T00:00:00Z",
+    "Title": "Database Connection Timeout",
+    "Summary": "Frequent timeouts are occurring when connecting to the database."
+  },
+  {
+    "ReferenceNumber": "PRB004",
+    "OpenedDate": "2025-04-15T00:00:00Z",
+    "Title": "Application Crash on Login",
+    "Summary": "The application crashes when users attempt to log in."
+  },
+  {
+    "ReferenceNumber": "PRB005",
+    "OpenedDate": "2025-04-10T00:00:00Z",
+    "Title": "Printer Not Responding",
+    "Summary": "The office printer is not responding to print requests."
+  }
+]

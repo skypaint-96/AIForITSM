@@ -4,12 +4,12 @@
 
 <div class="mb-3">
     <div class="border border-primary rounded p-3 text-center bg-light"
-         @ref="fileDropContainer"
-         @ondragenter="OnDragEnter"
-         @ondragleave="OnDragLeave"
-         @ondragover="OnDragEnter">
+    @ref="fileDropContainer"
+    @ondragenter="OnDragEnter"
+    @ondragleave="OnDragLeave"
+    @ondragover="OnDragEnter">
         <label for="fileInput" class="form-label">Drag and drop files here or click to upload</label>
-        <InputFile id="fileInput" class="form-control" OnChange="HandleFileChange" multiple="@AllowMultiple" />
+        <InputFile id="fileInput" class="form-control" OnChange="HandleFileChange" />
     </div>
     @if (!string.IsNullOrEmpty(ErrorMessage))
     {
@@ -44,6 +44,7 @@
             while (await stream.ReadAsync(data) > 0) ;
 
             await OnFileUploaded.InvokeAsync(data.ToArray());
+            StateHasChanged();
         }
         catch (Exception ex)
         {

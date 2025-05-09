@@ -20,11 +20,11 @@ namespace AIForITSM
 
         //[KernelFunction, Description("Creates a single Incident record.")]
         //public async Task<Incident> CreateIncident(
-        //        [Description("Unique identifier for the incident.")] string incidentId,
+        //        [Description("Unique identifier for the incident.")] int incidentId,
         //        [Description("Brief description of the incident.")] string shortDescription,
         //        [Description("Detailed description of the incident.")] string description,
-        //        [Description("Priority of the incident (1 = Critical, 2 = High, 3 = Medium, 4 = Low).")] int priority,
-        //        [Description("Current state of the incident (e.g., New, In Progress, Resolved, Closed).")] string state,
+        //        [Description("Priority of the incident (1 = Critical, 2 = High, 3 = Medium, 4 = Low).")] TaskPriority priority,
+        //        [Description("Current state of the incident (e.g., New, In Progress, Resolved, Closed).")] TaskState state,
         //        [Description("The user assigned to resolve the incident.")] string assignedTo,
         //        [Description("The user who reported the incident.")] string callerId,
         //        [Description("Category of the incident (e.g., Network, Hardware, Software).")] string category,
@@ -131,15 +131,25 @@ namespace AIForITSM
         ////    updatedCollection.Add(record);
         ////    return updatedCollection;
         ////}
-        [KernelFunction, Description("Generates a record with the current date and time.")]
-        public async Task<string> GetDate()
+        
+        public async Task<string> GetIncNo(int num)
         {
-            return DateTime.Now.ToString();
+            return $"INC{num}";
         }
-        //[KernelFunction, Description("Generates a new incident record")]
-        //public async Task<string> GetIncident([Description("the new ref num:")] int number)
-        //{
-        //    return number.ToString();
-        //}
+    }
+
+    enum TaskPriority
+    {
+        Critical = 1,
+        High = 2,
+        Moderate = 3,
+        Low = 4,
+    }
+
+    enum TaskState
+    {
+        New = 1,
+        WIP = 2,
+        OnHold = 3,
     }
 }

@@ -208,8 +208,8 @@
 #pragma warning restore SKEXP0070
             builder.Plugins.AddFromType<RecordGeneratorPlugin>();
             var kernel = builder.Build();
-            // KernelArguments args = new KernelArguments();
-            // args.Add("incidentId", "INC001");
+            KernelArguments args = new KernelArguments();
+            //args.Add("number", 1);
             // args.Add("shortDescription", "Example Incident");
             // args.Add("description", "This is a test incident.");
             // args.Add("priority", 1);
@@ -224,8 +224,8 @@
             // args.Add("impact", 1);
             // args.Add("urgency", 1);
             // args.Add("comments", "No comments");
-            var availableFunctions = kernel.Plugins;
-            generatedData = (await kernel.InvokeAsync("RecordGeneratorPlugin", "GetDate")).ToString();
+            //var availableFunctions = kernel.Plugins;
+            generatedData = (await kernel.InvokeAsync("RecordGeneratorPlugin", "GetIncNo")).ToString();
             StateHasChanged(); 
             isLoading = false;
         }
