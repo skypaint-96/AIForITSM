@@ -1,3 +1,11 @@
+:root {
+    --bs-primary: #ff0000; /* Your custom primary color */
+    --bs-success: #28a745; /* Your custom success color */
+    --bs-danger: #dc3545; /* Your custom danger color */
+    --bs-info: #17a2b8; /* Your custom info color */
+    /* Add more as needed */
+}
+
 h1:focus {
     outline: none;
 }

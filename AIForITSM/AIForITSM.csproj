@@ -15,4 +15,8 @@
     <PackageReference Include="QuestPDF" Version="2025.4.3" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="wwwroot\Media\Images\image1.png" />
+  </ItemGroup>
+
 </Project>

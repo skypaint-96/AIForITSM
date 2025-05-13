@@ -1,0 +1,35 @@
+﻿$primary: #5236ab;
+$secondary: #e41937;
+
+.print-report {
+    display: block;
+}
+
+@media print {
+    @page {
+        size: A4;
+        margin: 5mm;
+    }
+
+    .no-print {
+        display: none !important;
+    }
+
+    .print-report {
+        display: block !important;
+        font-size: 11pt !important;
+    }
+}
+
+@import "bootstrap/scss/bootstrap";
+
+@media print {
+    .container, .container-fluid {
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        max-width: 100% !important;
+        width: 100% !important;
+    }
+}

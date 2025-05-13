@@ -8,194 +8,181 @@
 @using QuestPDF.Helpers
 @using QuestPDF.Infrastructure
 @inject ConfigurationService ConfigService
-@rendermode InteractiveServer
 @inject IJSRuntime JSRuntime
+@rendermode InteractiveServer
 
 <h3 class="text-center">ServiceNow Problem Report</h3>
 
 <div class="container mt-4">
-    @if (!string.IsNullOrEmpty(ErrorMessage))
-    {
-        <div class="alert alert-danger text-center" role="alert">
-            @ErrorMessage
+    <div class="container mt-4">
+        <div class="no-print">
+            <CompanySelector OnCompanySelected="OnCompanySelected" OnCompanyReset="OnCompanyReset" />
         </div>
-    }
 
-    <!-- File Upload Section -->
-    <div class="row justify-content-center mt-4">
-        <div class="col-md-8">
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title">Upload Problem Records</h5>
-                    <FileUploader OnFileUploaded="HandleFileUpload" AllowMultiple="true" />
-                    <button class="btn btn-primary w-100 mt-3" @onclick="GenerateReport" disabled="@(!isFileUploaded || isLoading)" >
-                        Generate Report
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <button class="btn btn-success w-100 mt-3" @onclick="ExportToPdf" disabled="@(!problemReport.Any())">
-        Export Report as PDF
-    </button>
-
-
-    <!-- Report Section -->
-    @if (problemReport != null && problemReport.Any())
-    {
-        <div class="mt-4">
-            <h5>Generated Problem Report</h5>
-            @foreach (var problem in problemReport)
+        @if (isCompanySelected)
+        {
+            @if (!string.IsNullOrEmpty(ErrorMessage))
             {
-                <div class="card mb-4">
-                    <div class="card-body">
-                        <h6 class="card-title">Problem: @problem.ReferenceNumber</h6>
-                        <table class="table table-bordered">
-                            <tbody>
-                                <tr>
-                                    <th>Reference Number</th>
-                                    <td>@problem.ReferenceNumber</td>
-                                </tr>
-                                <tr>
-                                    <th>Opened Date</th>
-                                    <td>@problem.OpenedDate.ToString("yyyy-MM-dd")</td>
-                                </tr>
-                                <tr>
-                                    <th>Days Open</th>
-                                    <td>@problem.DaysOpen</td>
-                                </tr>
-                                <tr>
-                                    <th>Title</th>
-                                    <td>@problem.Title</td>
-                                </tr>
-                                <tr>
-                                    <th>Summary</th>
-                                    <td>@problem.Summary</td>
-                                </tr>
-                                <tr>
-                                    <th>Recent Updates</th>
-                                    <td>@problem.RecentUpdates</td>
-                                </tr>
-                                <tr>
-                                    <th>Comments</th>
-                                    <td>
-                                        <textarea class="form-control" rows="2" @bind="problem.Comments"></textarea>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
+                <div class="alert alert-danger text-center no-print" role="alert">
+                    @ErrorMessage
                 </div>
             }
-        </div>
-    }
 
+            <!-- File Upload Section -->
+            <div class="row justify-content-center mt-4 no-print">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">Upload Problem Records</h5>
+                            <FileUploader OnFileUploaded="HandleFileUpload" AllowMultiple="true" />
+                            @if (isFileUploaded && !isLoading && (problemReport.Count == 0))
+                            {
+                                <button class="btn btn-primary w-100 mt-3" @onclick="GenerateReport">
+                                    Generate Report
+                                </button>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            @if (problemReport.Count > 0 && !isLoading)
+            {
+                <button class="btn btn-primary no-print" @onclick="PrintReport">Print</button>
+            }
+
+            <div class="row justify-content-center mt-4 no-print">
+                <div class="col-md-8">
+                    <AIServiceSelector UseAzureService="useAzureService" UseAzureServiceChanged="OnUseAzureServiceChanged" />
+                </div>
+            </div>
+            <div class="no-print">
+                <LoadingIndicator IsLoading="isLoading" Message="Generating problem report, please wait..." />
+            </div>
+
+            <!-- Report Section -->
+            @if (problemReport.Count > 0)
+            {
+                <div class="mb-3 no-print">
+                    <label for="sortOrder" class="form-label">Sort By:</label>
+                    <select id="sortOrder" class="form-select w-auto d-inline-block ms-2" @bind="selectedSortOrder">
+                        <option value="priority">Priority</option>
+                        <option value="summary">Summary</option>
+                        <option value="investigation">Investigation Type</option>
+                        <option value="age">Age</option>
+                        <option value="status">Status</option>
+                    </select>
+                </div>
+                <div class="mt-4 print-report">
+                    <h5>Generated Problem Report</h5>
+                    @foreach (var problem in GetFilteredAndSortedProblems())
+                    {
+                        <div class="card mb-4">
+                            <div class="card-body">
+                                <h6 class="card-title">Problem: @problem.Number</h6>
+                                <table class="table table-bordered">
+                                    <tbody>
+                                        <tr>
+                                            <th class="table-secondary">Priority</th>
+                                            <td>@problem.Priority</td>
+                                        </tr>
+                                        <tr>
+                                            <th class="table-secondary">Status</th>
+                                            <td>@problem.State</td>
+                                        </tr>
+                                        <tr>
+                                            <th class="table-secondary">Submit Date</th>
+                                            <td>@problem.OpenedAt</td>
+                                        </tr>
+                                        <tr>
+                                            <th class="table-secondary">Age</th>
+                                            <td>@problem.GetAge()</td>
+                                        </tr>
+                                        <tr>
+                                            <th class="table-secondary">Summary</th>
+                                            <td>@problem.ShortDescription</td>
+                                        </tr>
+                                        <tr>
+                                            <th class="table-secondary">Investigation Type</th>
+                                            <td>@problem.UInvestigationDriver</td>
+                                        </tr>
+                                        <tr>
+                                            <th class="table-secondary">Root Cause</th>
+                                            <td>@problem.CauseNotes</td>
+                                        </tr>
+                                        <tr>
+                                            <th class="table-secondary">Update</th>
+                                            <td>
+                                                @if (problem.ProblemUpdate is null)
+                                                {
+                                                    <span class="text-muted">Generating update...</span>
+                                                }
+                                                else
+                                                {
+                                                    <div>@problem.ProblemUpdate</div>
+                                                }
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th class="table-secondary">Comments</th>
+                                            <td>
+                                                <textarea class="form-control" rows="2" @bind="problem.PRBComments"></textarea>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        }
+    </div>
 </div>
-
-<script>
-    function downloadFile(fileName, url) {
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = fileName;
-        link.click();
-    }
-</script>
-
 
 @code {
     private string ErrorMessage = string.Empty;
-    private bool isFileUploaded = false;
-    private bool isLoading = false;
-    private byte[] uploadedFileContent;
-    private List<ProblemRecord> problemReport = new();
+    private bool isFileUploaded;
+    private bool isLoading;
+    private byte[]? uploadedFileContent;
+    private readonly List<Problem> problemReport = new();
+    private bool isCompanySelected;
+    private string selectedCompany = string.Empty;
+    private int pendingUpdates;
 
-    private async Task ExportToPdf()
+    private bool useAzureService;
+    private CompanyConfig companyConfig = new();
+    private Kernel? aiKernel;
+
+    private string selectedSortOrder = "priority";
+
+    private void OnUseAzureServiceChanged(bool value)
     {
-        try
-        {
-            // Generate the PDF content
-            var pdfBytes = GeneratePdf();
-
-            // Trigger the download in the browser
-            var fileName = "ProblemReport.pdf";
-            var base64 = Convert.ToBase64String(pdfBytes);
-            var url = $"data:application/pdf;base64,{base64}";
-            await JSRuntime.InvokeVoidAsync("downloadFile", fileName, url);
-            
-        }
-        catch (Exception ex)
-        {
-            ErrorMessage = $"An error occurred while exporting the PDF: {ex.Message}";
-        }
+        useAzureService = value;
+        aiKernel = null;
     }
 
-    private byte[] GeneratePdf()
+    private async Task PrintReport()
     {
-        using var stream = new MemoryStream();
-        QuestPDF.Settings.License = LicenseType.Community;
-        QuestPDF.Fluent.Document.Create(container =>
-        {
-            container.Page(page =>
-            {
-                page.Size(PageSizes.A4);
-                page.Margin(1, QuestPDF.Infrastructure.Unit.Centimetre);
-                page.DefaultTextStyle(x => x.FontSize(12));
-
-                page.Header().Text("ServiceNow Problem Report").Bold().FontSize(16).AlignCenter();
-
-                page.Content().Column(column =>
-                {
-                    foreach (var problem in problemReport)
-                    {
-                        column.Item().Text($"Problem: {problem.ReferenceNumber}").Bold().FontSize(14);
-
-                        column.Item().Table(table =>
-                        {
-                            table.ColumnsDefinition(columns =>
-                            {
-                                columns.RelativeColumn(1);
-                                columns.RelativeColumn(2);
-                            });
-
-                            table.Cell().Text("Reference Number").Bold();
-                            table.Cell().Text(problem.ReferenceNumber);
-
-                            table.Cell().Text("Opened Date").Bold();
-                            table.Cell().Text(problem.OpenedDate.ToString("yyyy-MM-dd"));
-
-                            table.Cell().Text("Days Open").Bold();
-                            table.Cell().Text(problem.DaysOpen.ToString());
-
-                            table.Cell().Text("Title").Bold();
-                            table.Cell().Text(problem.Title);
-
-                            table.Cell().Text("Summary").Bold();
-                            table.Cell().Text(problem.Summary);
-
-                            table.Cell().Text("Recent Updates").Bold();
-                            table.Cell().Text(problem.RecentUpdates);
-
-                            table.Cell().Text("Comments").Bold();
-                            table.Cell().Text(problem.Comments);
-                        });
-
-                        // column.Item().Padding(0, 0, 0, 10);
-                    }
-                });
-
-                page.Footer().AlignCenter().Text(x =>
-                {
-                    x.Span("Generated on ");
-                    x.Span(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")).Bold();
-                });
-            });
-        }).GeneratePdf(stream);
-
-        return stream.ToArray();
+        await JSRuntime.InvokeVoidAsync("window.print");
     }
 
+    private async Task OnCompanySelected(string company)
+    {
+        selectedCompany = company;
+        isCompanySelected = true;
+        aiKernel = null;
+    }
 
+    private void OnCompanyReset()
+    {
+        isCompanySelected = false;
+        selectedCompany = string.Empty;
+        problemReport.Clear();
+        isFileUploaded = false;
+        ErrorMessage = string.Empty;
+        aiKernel = null;
+    }
 
     private void HandleFileUpload(byte[] fileContent)
     {
@@ -203,60 +190,148 @@
         isFileUploaded = true;
     }
 
-    private void GenerateReport()
+    private async Task GenerateReport()
     {
         isLoading = true;
         ErrorMessage = string.Empty;
 
         try
         {
-            // Parse the uploaded JSON data
-            string jsonData = Encoding.UTF8.GetString(uploadedFileContent);
-            var problems = JsonSerializer.Deserialize<List<ProblemRecord>>(jsonData);
-
-            if (problems == null || !problems.Any())
+            if (uploadedFileContent is null)
             {
-                ErrorMessage = "The uploaded file does not contain valid problem records.";
+                ErrorMessage = "No file uploaded.";
+                isLoading = false;
+                StateHasChanged();
                 return;
             }
 
-            // Process each problem record
-            problemReport = problems.Select(problem => new ProblemRecord
-                {
-                    ReferenceNumber = problem.ReferenceNumber,
-                    OpenedDate = problem.OpenedDate,
-                    DaysOpen = (DateTime.UtcNow - problem.OpenedDate).Days,
-                    Title = problem.Title,
-                    Summary = problem.Summary,
-                    RecentUpdates = GetRecentUpdatesFromAI(problem),
-                    Comments = string.Empty
-                }).ToList();
+            var problems = JsonSerializer.Deserialize<List<Problem>>(Encoding.UTF8.GetString(uploadedFileContent));
+
+            if (problems is null || problems.Count == 0)
+            {
+                ErrorMessage = "No problems found in the uploaded file.";
+                problemReport.Clear();
+                isLoading = false;
+                StateHasChanged();
+                return;
+            }
+
+            await EnsureKernelAsync();
+
+            problemReport.Clear();
+            problemReport.AddRange(problems.Where(p => !string.Equals(p.State, "Closed", StringComparison.OrdinalIgnoreCase)));
+
+            pendingUpdates = problemReport.Count;
+
+            foreach (var problem in problemReport)
+            {
+                _ = GenerateAndSetProblemUpdate(problem);
+            }
         }
         catch (Exception ex)
         {
             ErrorMessage = $"An error occurred while generating the report: {ex.Message}";
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task GenerateAndSetProblemUpdate(Problem problem)
+    {
+        try
+        {
+            problem.ProblemUpdate = await problem.GetProblemUpdateAsync(aiKernel);
+        }
+        catch (Exception ex)
+        {
+            problem.ProblemUpdate = $"AI error: {ex.Message}";
+        }
+        finally
+        {
+            if (--pendingUpdates <= 0)
+            {
+                isLoading = false;
+            }
+            StateHasChanged();
+        }
+    }
+
+    private IEnumerable<Problem> GetFilteredAndSortedProblems()
+    {
+        var openProblems = problemReport
+            .Where(p => !string.Equals(p.State, "Closed", StringComparison.OrdinalIgnoreCase));
+
+        return selectedSortOrder switch
+        {
+            "priority" => openProblems.OrderBy(p => p.Priority ?? int.MaxValue),
+            "summary" => openProblems.OrderBy(p => p.ShortDescription),
+            "investigation" => openProblems.OrderBy(p => p.UInvestigationDriver),
+            "age" => openProblems.OrderByDescending(p => p.GetAge()),
+            "status" => openProblems.OrderBy(p => p.State),
+            _ => openProblems
+        };
+    }
+
+    private async Task EnsureKernelAsync()
+    {
+        if (aiKernel != null)
+            return;
+
+        var builder = Kernel.CreateBuilder();
+
+        companyConfig = await ConfigService.GetCompanyDetailsAsync(selectedCompany);
+
+        if (useAzureService)
+        {
+            companyConfig.AzureOpenAI.Model = EncryptionHelper.Decrypt(companyConfig.AzureOpenAI.Model);
+            companyConfig.AzureOpenAI.Endpoint = EncryptionHelper.Decrypt(companyConfig.AzureOpenAI.Endpoint);
+            companyConfig.AzureOpenAI.DeploymentName = EncryptionHelper.Decrypt(companyConfig.AzureOpenAI.DeploymentName);
+            companyConfig.AzureOpenAI.ApiKey = EncryptionHelper.Decrypt(companyConfig.AzureOpenAI.ApiKey);
+
+            builder.AddAzureOpenAIChatCompletion(
+                companyConfig.AzureOpenAI.DeploymentName,
+                new AzureOpenAIClient(
+                    new Uri(companyConfig.AzureOpenAI.Endpoint),
+                    new System.ClientModel.ApiKeyCredential(companyConfig.AzureOpenAI.ApiKey)
+                )
+            );
+        }
+        else
+        {
+            companyConfig.Ollama.Model = EncryptionHelper.Decrypt(companyConfig.Ollama.Model);
+            companyConfig.Ollama.Endpoint = EncryptionHelper.Decrypt(companyConfig.Ollama.Endpoint);
+
+#pragma warning disable SKEXP0070
+            builder.AddOllamaChatCompletion(
+                new OllamaSharp.OllamaApiClient(
+                    companyConfig.Ollama.Endpoint,
+                    companyConfig.Ollama.Model
+                )
+            );
+#pragma warning restore SKEXP0070
+        }
+
+        aiKernel = builder.Build();
+    }
+
+    // Optionally remove if not used elsewhere
+    private async Task GenerateProblemUpdate(Problem problem)
+    {
+        isLoading = true;
+        ErrorMessage = string.Empty;
+        try
+        {
+            await EnsureKernelAsync();
+            problem.ProblemUpdate = await problem.GetProblemUpdateAsync(aiKernel);
+        }
+        catch (Exception ex)
+        {
+            problem.ProblemUpdate = $"AI error: {ex.Message}";
         }
         finally
         {
             isLoading = false;
+            StateHasChanged();
         }
-    }
-
-    private string GetRecentUpdatesFromAI(ProblemRecord problem)
-    {
-        // Placeholder for AI analysis logic
-        // Replace this with actual AI integration to generate a summary of recent updates
-        return $"AI summary for problem {problem.ReferenceNumber}";
-    }
-
-    public class ProblemRecord
-    {
-        public string ReferenceNumber { get; set; }
-        public DateTime OpenedDate { get; set; }
-        public string Title { get; set; }
-        public string Summary { get; set; }
-        public string RecentUpdates { get; set; }
-        public string Comments { get; set; }
-        public int DaysOpen { get; set; }
     }
 }
